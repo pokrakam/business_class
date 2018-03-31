@@ -3,21 +3,26 @@
 CLASS ltc_wf_super_test DEFINITION DEFERRED.
 CLASS zcl_business_class DEFINITION LOCAL FRIENDS ltc_wf_super_test.
 
-*----------------------------------------------------------------------*
-*       CLASS lcl_wf_super DEFINITION
-*----------------------------------------------------------------------*
-*
-*----------------------------------------------------------------------*
-CLASS lcl_wf_super DEFINITION FINAL INHERITING FROM zcl_business_class FRIENDS ltc_wf_super_test.
+CLASS lcl_implementing_subclass DEFINITION
+                                FINAL
+                                INHERITING FROM zcl_business_class
+                                CREATE PUBLIC
+                                FRIENDS ltc_wf_super_test.
   PUBLIC SECTION.
-ENDCLASS.                    "lcl_wf_super DEFINITION
+    METHODS constructor IMPORTING i_lpor TYPE sibflpor
+                        RAISING   cx_bo_instance_not_found .
+ENDCLASS.
 
-*----------------------------------------------------------------------*
-*       CLASS ltc_wf_super_test DEFINITION
-*----------------------------------------------------------------------*
-*
-*----------------------------------------------------------------------*
-CLASS ltc_wf_super_test DEFINITION FINAL
+CLASS lcl_implementing_subclass IMPLEMENTATION.
+
+  METHOD constructor.
+    super->constructor( i_lpor = i_lpor ).
+  ENDMETHOD.
+
+ENDCLASS.
+
+CLASS ltc_wf_super_test DEFINITION
+                        FINAL
                         FOR TESTING
                         DURATION SHORT
                         RISK LEVEL HARMLESS.
@@ -25,52 +30,46 @@ CLASS ltc_wf_super_test DEFINITION FINAL
   PRIVATE SECTION.
     CONSTANTS: BEGIN OF c_lpor,
                  instid TYPE sibfinstid VALUE 'TEST',
-                 typeid TYPE sibftypeid VALUE 'LCL_WF_SUPER',
+                 typeid TYPE sibftypeid VALUE 'LCL_IMPLEMENTING_SUBCLASS',
                  catid  TYPE sibfcatid VALUE 'CL',
                END OF c_lpor.
 
-    DATA: f_cut TYPE REF TO lcl_wf_super.
+    DATA: cut TYPE REF TO lcl_implementing_subclass.
 
-    METHODS: setup.
+    METHODS: setup RAISING cx_static_check.
     METHODS: teardown.
 
     METHODS: get_default_attribute_value FOR TESTING.
     METHODS: find_by_lpor FOR TESTING.
-    METHODS: lpor FOR TESTING.
+    METHODS: lpor FOR TESTING,
+      dummy FOR TESTING RAISING cx_static_check,
+      release FOR TESTING RAISING cx_static_check.
 
 ENDCLASS.                    "ltc_wf_super_test DEFINITION
 
-*----------------------------------------------------------------------*
-*       CLASS ltc_wf_super_test IMPLEMENTATION
-*----------------------------------------------------------------------*
-*
-*----------------------------------------------------------------------*
 CLASS ltc_wf_super_test IMPLEMENTATION.
 
   METHOD setup.
-    TRY.
-        CREATE OBJECT f_cut
-          EXPORTING
-            i_lpor = c_lpor.
-      CATCH cx_bo_instance_not_found.
-        cl_abap_unit_assert=>fail( msg = 'Could not instantiate test object' ).
-    ENDTRY.
+    CREATE OBJECT cut
+      EXPORTING
+        i_lpor = c_lpor.
 
   ENDMETHOD.                    "setup
 
   METHOD teardown.
-    CLEAR f_cut.
+    CLEAR cut.
+    CLEAR zcl_business_class=>instances.
   ENDMETHOD.                    "teardown
 
+
   METHOD get_default_attribute_value.
-    DATA: act TYPE REF TO data.
 
-    FIELD-SYMBOLS <val> TYPE clike.
+    DATA(act) = cut->bi_object~default_attribute_value(  ).
+    ASSIGN act->* TO FIELD-SYMBOL(<val>).
+    cl_abap_unit_assert=>assert_equals( act = <val>
+                                        exp = 'TEST' ).
 
-    act = f_cut->bi_object~default_attribute_value(  ).
-    ASSIGN act->* TO <val>.
-    cl_abap_unit_assert=>assert_equals( msg = 'Default attribute wrong' exp = 'TEST' act = <val> ).
-  ENDMETHOD.                    "get_default_attribute_value
+  ENDMETHOD.
 
 
   METHOD find_by_lpor.
@@ -82,11 +81,11 @@ CLASS ltc_wf_super_test IMPLEMENTATION.
     lpor = c_lpor.
 
     "Test 1: Should not reference the un-managed instance of this test
-    inst1 ?= lcl_wf_super=>bi_persistent~find_by_lpor( lpor ).
+    inst1 ?= lcl_implementing_subclass=>bi_persistent~find_by_lpor( lpor ).
     cl_abap_unit_assert=>assert_bound( inst1 ).
     "Should reference different instance, as first was created without instance management
     "(assert_differs cannot use reference variables)
-    IF f_cut = inst1.
+    IF cut = inst1.
       cl_abap_unit_assert=>fail( msg = 'Should not be same instance' ).
     ENDIF.
 
@@ -109,13 +108,36 @@ CLASS ltc_wf_super_test IMPLEMENTATION.
       cl_abap_unit_assert=>fail( msg = 'Different key same instance' ).
     ENDIF.
 
-  ENDMETHOD.                    "find_by_lpor
+  ENDMETHOD.
 
 
   METHOD lpor.
     DATA: lpor TYPE sibflpor.
-    lpor = f_cut->bi_persistent~lpor( ).
-    cl_abap_unit_assert=>assert_equals( msg = 'LPOR incorrect' exp = c_lpor act = lpor ).
-  ENDMETHOD.                    "lpor
+    lpor = cut->bi_persistent~lpor( ).
+    cl_abap_unit_assert=>assert_equals( act = lpor
+                                        exp = c_lpor
+                                        msg = 'LPOR incorrect' ).
+  ENDMETHOD.
+
+
+  METHOD release.
+    cl_abap_unit_assert=>assert_equals( act = lines( zcl_business_class=>instances )
+                                        exp = 0 ).
+    DATA(instance) = lcl_implementing_subclass=>bi_persistent~find_by_lpor( c_lpor ).
+    cl_abap_unit_assert=>assert_equals( act = lines( zcl_business_class=>instances )
+                                        exp = 1 ).
+    instance->bi_object~release( ).
+    cl_abap_unit_assert=>assert_equals( act = lines( zcl_business_class=>instances )
+                                        exp = 0 ).
+  ENDMETHOD.
+
+
+  METHOD dummy.
+    "For coverage / sanity check - run through empty method
+    cut->execute_default_method( ).
+    cut->supply_instance( ).
+    cut->refresh( ).
+  ENDMETHOD.
+
 
 ENDCLASS.                    "ltc_wf_super_test IMPLEMENTATION

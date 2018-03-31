@@ -1,4 +1,4 @@
-CLASS zcl_business_class DEFINITION
+CLASS zcl_business_class_700 DEFINITION
                          PUBLIC
                          ABSTRACT
                          CREATE PROTECTED.
@@ -8,22 +8,16 @@ CLASS zcl_business_class DEFINITION
     INTERFACES bi_object.
     INTERFACES bi_persistent.
 
-    ALIASES: find_by_lpor FOR bi_persistent~find_by_lpor,
-*  *  lpor for bi_persistent~lpor,
-     refresh FOR bi_persistent~refresh.
+    ALIASES refresh FOR bi_persistent~refresh.
+    ALIASES release FOR bi_object~release.
 
-    ALIASES: default_attribute_value FOR bi_object~default_attribute_value,
-             execute_default_method  FOR bi_object~execute_default_method,
-             release                 FOR bi_object~release.
-
-
+    METHODS constructor      IMPORTING i_lpor TYPE sibflpor
+                             RAISING   cx_bo_instance_not_found .
 
   PROTECTED SECTION.
 
     DATA lpor TYPE sibflpor.
 
-    METHODS constructor     IMPORTING i_lpor TYPE sibflpor
-                            RAISING   cx_bo_instance_not_found .
     METHODS supply_instance RAISING cx_bo_instance_not_found.
 
   PRIVATE SECTION.
@@ -31,7 +25,7 @@ CLASS zcl_business_class DEFINITION
     TYPES: BEGIN OF t_instance,
              typeid   TYPE sibftypeid,
              instid   TYPE sibfinstid,
-             instance TYPE REF TO zcl_business_class,
+             instance TYPE REF TO zcl_business_class_700,
            END OF t_instance .
     TYPES:
       t_instances TYPE STANDARD TABLE OF t_instance .
@@ -41,7 +35,7 @@ ENDCLASS.
 
 
 
-CLASS zcl_business_class IMPLEMENTATION.
+CLASS zcl_business_class_700 IMPLEMENTATION.
 
 
   METHOD bi_object~default_attribute_value.
@@ -50,32 +44,37 @@ CLASS zcl_business_class IMPLEMENTATION.
 
 
   METHOD bi_object~execute_default_method  ##needed.
-    "To be redefined
   ENDMETHOD.
 
 
   METHOD bi_object~release.
+    "If we have an instance
+    READ TABLE instances INTO DATA(instance)
+         WITH TABLE KEY typeid = lpor-typeid instid = lpor-instid.
+    CHECK sy-subrc = 0.
+
     "Remove from instance table
     DELETE TABLE instances WITH TABLE KEY typeid = lpor-typeid instid = lpor-instid.
-    ASSERT sy-subrc = 0. "Something is fundamentally wrong with instance management if it fails
   ENDMETHOD.
 
 
   METHOD bi_persistent~find_by_lpor.
     "Called to request an object instance
 
+    DATA: instance TYPE t_instance.
+
     CHECK lpor-instid IS NOT INITIAL.
 
     "Buffered instantiation
-    DATA(instance) = VALUE #(
-        zcl_business_class=>instances[ typeid = lpor-typeid
-                                       instid = lpor-instid ]
-        optional ).
+    READ TABLE zcl_business_class_700=>instances
+       WITH KEY typeid = lpor-typeid
+                instid = lpor-instid
+       INTO instance.
 
     "If not found, instantiate
-    IF instance is initial.
-     instance-typeid = lpor-typeid.
-     instance-instid = lpor-instid.
+    IF sy-subrc <> 0.
+      instance-typeid = lpor-typeid.
+      instance-instid = lpor-instid.
       TRY.
           CREATE OBJECT instance-instance TYPE (lpor-typeid)
             EXPORTING
@@ -84,7 +83,7 @@ CLASS zcl_business_class IMPLEMENTATION.
           RETURN.   "Caller must check existence
       ENDTRY.
       "Add new object to the instance table
-      APPEND instance TO zcl_business_class=>instances.
+      APPEND instance TO zcl_business_class_700=>instances.
     ENDIF.
 
     result = instance-instance.
