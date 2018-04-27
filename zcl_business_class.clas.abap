@@ -9,7 +9,6 @@ CLASS zcl_business_class DEFINITION
     INTERFACES bi_persistent.
 
     ALIASES: find_by_lpor FOR bi_persistent~find_by_lpor,
-*  *  lpor for bi_persistent~lpor,
      refresh FOR bi_persistent~refresh.
 
     ALIASES: default_attribute_value FOR bi_object~default_attribute_value,
@@ -70,12 +69,12 @@ CLASS zcl_business_class IMPLEMENTATION.
     DATA(instance) = VALUE #(
         zcl_business_class=>instances[ typeid = lpor-typeid
                                        instid = lpor-instid ]
-        optional ).
+        OPTIONAL ).
 
     "If not found, instantiate
-    IF instance is initial.
-     instance-typeid = lpor-typeid.
-     instance-instid = lpor-instid.
+    IF instance IS INITIAL.
+      instance-typeid = lpor-typeid.
+      instance-instid = lpor-instid.
       TRY.
           CREATE OBJECT instance-instance TYPE (lpor-typeid)
             EXPORTING
