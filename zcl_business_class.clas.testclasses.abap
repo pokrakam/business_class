@@ -36,14 +36,15 @@ CLASS ltc_wf_super_test DEFINITION
 
     DATA: cut TYPE REF TO lcl_implementing_subclass.
 
-    METHODS: setup RAISING cx_static_check.
-    METHODS: teardown.
+    METHODS setup RAISING cx_static_check.
+    METHODS teardown.
 
-    METHODS: get_default_attribute_value FOR TESTING.
-    METHODS: find_by_lpor FOR TESTING.
-    METHODS: lpor FOR TESTING,
-      dummy FOR TESTING RAISING cx_static_check,
-      release FOR TESTING RAISING cx_static_check.
+    METHODS get_default_attribute_value FOR TESTING.
+    METHODS find_by_lpor FOR TESTING.
+    METHODS lpor FOR TESTING.
+    METHODS dummy FOR TESTING RAISING cx_static_check.
+    METHODS release FOR TESTING RAISING cx_static_check.
+    METHODS invalid_objtype_return_empty FOR TESTING RAISING cx_static_check.
 
 ENDCLASS.                    "ltc_wf_super_test DEFINITION
 
@@ -137,6 +138,15 @@ CLASS ltc_wf_super_test IMPLEMENTATION.
     cut->execute_default_method( ).
     cut->supply_instance( ).
     cut->refresh( ).
+  ENDMETHOD.
+
+
+  METHOD invalid_objtype_return_empty.
+    DATA(test) = zcl_business_class=>find_by_lpor(
+                    VALUE #( catid  = 'CL'
+                             typeid = 'BLAH'
+                             instid = '123' ) ).
+    cl_abap_unit_assert=>assert_not_bound( test ).
   ENDMETHOD.
 
 

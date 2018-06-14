@@ -9,12 +9,11 @@ CLASS zcl_business_class DEFINITION
     INTERFACES bi_persistent.
 
     ALIASES: find_by_lpor FOR bi_persistent~find_by_lpor,
-     refresh FOR bi_persistent~refresh.
+             refresh      FOR bi_persistent~refresh.
 
     ALIASES: default_attribute_value FOR bi_object~default_attribute_value,
              execute_default_method  FOR bi_object~execute_default_method,
              release                 FOR bi_object~release.
-
 
 
   PROTECTED SECTION.
@@ -27,13 +26,13 @@ CLASS zcl_business_class DEFINITION
 
   PRIVATE SECTION.
 
-    TYPES: BEGIN OF t_instance,
-             typeid   TYPE sibftypeid,
-             instid   TYPE sibfinstid,
-             instance TYPE REF TO zcl_business_class,
-           END OF t_instance .
+    TYPES: BEGIN OF t_instance_with_key,
+             typeid TYPE sibftypeid,
+             instid TYPE sibfinstid,
+             objref TYPE REF TO zcl_business_class,
+           END OF t_instance_with_key .
     TYPES:
-      t_instances TYPE STANDARD TABLE OF t_instance .
+      t_instances TYPE STANDARD TABLE OF t_instance_with_key .
 
     CLASS-DATA instances TYPE t_instances .
 ENDCLASS.
@@ -56,7 +55,7 @@ CLASS zcl_business_class IMPLEMENTATION.
   METHOD bi_object~release.
     "Remove from instance table
     DELETE TABLE instances WITH TABLE KEY typeid = lpor-typeid instid = lpor-instid.
-    ASSERT sy-subrc = 0. "Something is fundamentally wrong with instance management if it fails
+    ASSERT sy-subrc = 0. "Something is fundamentally wrong if it fails
   ENDMETHOD.
 
 
@@ -76,17 +75,17 @@ CLASS zcl_business_class IMPLEMENTATION.
       instance-typeid = lpor-typeid.
       instance-instid = lpor-instid.
       TRY.
-          CREATE OBJECT instance-instance TYPE (lpor-typeid)
+          CREATE OBJECT instance-objref TYPE (lpor-typeid)
             EXPORTING
               i_lpor = lpor.
-        CATCH cx_static_check.  "Catch all to also include invalid object types
+        CATCH CX_SY_CREATE_OBJECT_ERROR.  "Catch all to also include invalid object types
           RETURN.   "Caller must check existence
       ENDTRY.
       "Add new object to the instance table
       APPEND instance TO zcl_business_class=>instances.
     ENDIF.
 
-    result = instance-instance.
+    result = instance-objref.
 
   ENDMETHOD.
 
@@ -115,4 +114,5 @@ CLASS zcl_business_class IMPLEMENTATION.
   METHOD supply_instance  ##needed.
     "To be redefined
   ENDMETHOD.
+
 ENDCLASS.
