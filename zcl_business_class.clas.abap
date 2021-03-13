@@ -55,7 +55,7 @@ CLASS zcl_business_class IMPLEMENTATION.
   METHOD bi_object~release.
     "Remove from instance table
     DELETE TABLE instances WITH TABLE KEY typeid = lpor-typeid instid = lpor-instid.
-    ASSERT sy-subrc = 0. "Something is fundamentally wrong if it fails
+    ASSERT sy-subrc = 0.
   ENDMETHOD.
 
 
